@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classroom App - Quản Lý Lớp Học & Gamification EdTech</title>
+  
+  <!-- Google Fonts: Be Vietnam Pro -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              emerald: '#059669',
+              teal: '#0d9488',
+              amber: '#d97706',
+              coral: '#ea580c',
+              dark: '#0f172a'
+            }
+          },
+          boxShadow: {
+            'gamified': '0 10px 25px -5px rgba(13, 148, 136, 0.25), 0 8px 10px -6px rgba(13, 148, 136, 0.1)',
+            'level': '0 0 20px rgba(245, 158, 11, 0.4)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & Babel Standalone CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .badge-glow {
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4)); }
+      50% { transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+  <div id="root"></div>
+
+  <!-- APPLICATION SCRIPT WITH BABEL JSX -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- INITIAL DATA & STORAGE LOGIC ---
+    const INITIAL_DATA = {
+      currentUser: {
+        id: "user-student-1",
+        email: "nguyenvanan@hocsinh.edu.vn",
+        full_name: "Nguyễn Văn An",
+        role: "student",
+        student_code: "HS2026001",
+        dob: "2011-05-15",
+        xp: 480,
+        level: 3,
+        streak_days: 7
+      },
+      classes: [
+        {
+          id: "class-9a",
+          name: "Lớp 9A - Toán Học & KHTN",
+          grade_level: "Khối 9",
+          join_code: "TOAN9A",
+          teacher_name: "Thầy Nguyễn Quốc Cường",
+          students_count: 38,
+          description: "Chương trình nâng cao Ôn thi vào Lớp 10 Chuyên và Thử nghiệm Học tập Tương tác.",
+          bg_gradient: "from-teal-600 to-emerald-700"
+        },
+        {
+          id: "class-8b",
+          name: "Lớp 8B - Vật Lý Tương Tác",
+          grade_level: "Khối 8",
+          join_code: "VATLY8B",
+          teacher_name: "Cô Trần Thị Mai",
+          students_count: 35,
+          description: "Khám phá thế giới Vật lý mô phỏng 3D và Trò chơi Đố vui Sinh động.",
+          bg_gradient: "from-amber-500 to-orange-600"
+        }
+      ],
+      students: [
+        { id: "hs-1", student_code: "HS2026001", full_name: "Nguyễn Văn An", dob: "2011-05-15", xp: 480, level: 3, streak: 7, status: "present" },
+        { id: "hs-2", student_code: "HS2026002", full_name: "Trần Thị Bình", dob: "2011-08-20", xp: 350, level: 2, streak: 4, status: "present" },
+        { id: "hs-3", student_code: "HS2026003", full_name: "Lê Hoàng Nam", dob: "2011-02-10", xp: 210, level: 2, streak: 2, status: "absent_excused" },
+        { id: "hs-4", student_code: "HS2026004", full_name: "Phạm Minh Dung", dob: "2011-11-05", xp: 520, level: 4, streak: 12, status: "present" },
+        { id: "hs-5", student_code: "HS2026005", full_name: "Vũ Đức Thắng", dob: "2011-03-30", xp: 190, level: 1, streak: 1, status: "late" }
+      ],
+      lessons: [
+        {
+          id: "les-1",
+          class_id: "class-9a",
+          title: "Chuyên Đề: Hàm Số Bậc Nhất & Phương Trình Bậc Hai",
+          material_type: "pdf",
+          file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          description: "Tài liệu hệ thống kiến thức trọng tâm ôn thi vào lớp 10 THPT."
+        },
+        {
+          id: "les-2",
+          class_id: "class-9a",
+          title: "Mô Phỏng Tương Tác: Cân Bằng Lực & Đòn Bẩy (PhET Simulation)",
+          material_type: "iframe_game",
+          embed_url: "https://phet.colorado.edu/sims/html/balancing-act/latest/balancing-act_all.html",
+          description: "Game học tập mô phỏng trực quan giúp học sinh tự thao tác thí nghiệm Vật lý."
+        },
+        {
+          id: "les-3",
+          class_id: "class-9a",
+          title: "Video Bài Giảng: Kỹ Thuật Giải Nhanh Hình Học Lớp 9",
+          material_type: "video",
+          embed_url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+          description: "Video hướng dẫn phương pháp vẽ đường phụ trong tam giác vuông."
+        }
+      ],
+      quizzes: [
+        {
+          id: "quiz-1",
+          class_id: "class-9a",
+          title: "⚡ Thử Thách Quiz: Ôn Tập Phương Trình Bậc Hai Toán 9",
+          duration_minutes: 10,
+          xp_reward: 100,
+          total_questions: 3,
+          questions: [
+            {
+              id: "q1",
+              question_text: "Phương trình x² - 5x + 6 = 0 có các nghiệm là gì?",
+              options: ["x = 1 và x = 6", "x = 2 và x = 3", "x = -2 và x = -3", "Phương trình vô nghiệm"],
+              correct_option: 1,
+              explanation: "Ta nhẩm nghiệm theo Vi-ét: x1 + x2 = 5, x1 * x2 = 6 ⇒ Nghiệm x1 = 2, x2 = 3."
+            },
+            {
+              id: "q2",
+              question_text: "Căn bậc hai số học của số 81 là bao nhiêu?",
+              options: ["9", "-9", "±9", "81"],
+              correct_option: 0,
+              explanation: "Căn bậc hai số học của a (a ≥ 0) là số không âm x sao cho x² = a. Vì 9 > 0 và 9² = 81 nên √81 = 9."
+            },
+            {
+              id: "q3",
+              question_text: "Cho tam giác ABC vuông tại A, AB = 3cm, AC = 4cm. Độ dài cạnh huyền BC là:",
+              options: ["5 cm", "6 cm", "7 cm", "12 cm"],
+              correct_option: 0,
+              explanation: "Áp dụng định lý Pythagore: BC² = AB² + AC² = 3² + 4² = 25 ⇒ BC = 5 cm."
+            }
+          ]
+        }
+      ],
+      quizSubmissions: [
+        {
+          id: "sub-1",
+          student_code: "HS2026001",
+          student_name: "Nguyễn Văn An",
+          quiz_title: "⚡ Thử Thách Quiz: Ôn Tập Phương Trình Bậc Hai Toán 9",
+          score: 10.0,
+          correct_answers: 3,
+          total_questions: 3,
+          xp_earned: 100,
+          submitted_at: "2026-08-15 14:30"
+        }
+      ],
+      badges: [
+        { id: "b1", name: "🥇 Chăm Học", desc: "Chuỗi 7 ngày truy cập học tập", icon: "🔥", color: "bg-amber-100 text-amber-800 border-amber-300" },
+        { id: "b2", name: "⚡ Vua Quiz", desc: "Đạt điểm 10 tuyệt đối bài Quiz", icon: "👑", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+        { id: "b3", name: "🚀 Thần Đồng", desc: "Tích lũy trên 300 điểm XP", icon: "🎯", color: "bg-sky-100 text-sky-800 border-sky-300" },
+        { id: "b4", name: "🏆 Siêu Đội Trưởng", desc: "Thăng cấp Level 4 trên Bảng Xếp Hạng", icon: "💎", color: "bg-rose-100 text-rose-800 border-rose-300" }
+      ],
+      posts: [
+        {
+          id: "p1",
+          author: "Thầy Nguyễn Quốc Cường",
+          role: "Giáo viên",
+          content: "Chào cả lớp 9A! Thầy đã cập nhật Game mô phỏng Vật Lý & Đòn Bẩy trên hệ thống. Các em vào phần Học liệu để trải nghiệm và làm bài Quiz nhận 100 XP nhé!",
+          likes: 18,
+          comments: [
+            { author: "Nguyễn Văn An", content: "Dạ thưa thầy, em đã làm xong Quiz và nhận 100 XP rồi ạ!", time: "10 phút trước" }
+          ],
+          created_at: "Hôm nay 08:30"
+        }
+      ]
+    };
+
+    function App() {
+      const [data, setData] = useState(() => {
+        const stored = localStorage.getItem("classroom_app_data_v2");
+        return stored ? JSON.parse(stored) : INITIAL_DATA;
+      });
+
+      const [currentRole, setCurrentRole] = useState("student"); // student | teacher | parent
+      const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | lessons | quiz | leaderboard | feed
+      const [activeQuizModal, setActiveQuizModal] = useState(null);
+      const [activeSandboxModal, setActiveSandboxModal] = useState(null);
+      const [toast, setToast] = useState(null);
+
+      // Save state to localStorage
+      useEffect(() => {
+        localStorage.setItem("classroom_app_data_v2", JSON.stringify(data));
+      }, [data]);
+
+      // Trigger Lucide Icons refresh after render
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      });
+
+      const showToast = (message, type = "success") => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 4000);
+      };
+
+      // Gamification: Add XP & Check Level Up
+      const addXP = (amount) => {
+        setData(prev => {
+          const newXP = prev.currentUser.xp + amount;
+          const newLevel = Math.floor(newXP / 150) + 1;
+          const leveledUp = newLevel > prev.currentUser.level;
+
+          if (leveledUp && window.confetti) {
+            window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            showToast(`🎉 CHÚC MỪNG! Bạn đã thăng cấp LEVEL ${newLevel}! +${amount} XP`, "level");
+          } else {
+            showToast(`⚡ +${amount} XP Kinh nghiệm vừa được cộng!`, "success");
+          }
+
+          return {
+            ...prev,
+            currentUser: {
+              ...prev.currentUser,
+              xp: newXP,
+              level: newLevel
+            }
+          };
+        });
+      };
+
+      return (
+        <div class="min-h-screen flex flex-col bg-slate-50">
+          {/* TOAST NOTIFICATION */}
+          {toast && (
+            <div className={`fixed top-5 right-5 z-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 font-semibold transition-all transform animate-bounce ${
+              toast.type === "level" ? "bg-amber-500 text-white shadow-amber-300" : "bg-emerald-600 text-white shadow-emerald-200"
+            }`}>
+              <i data-lucide={toast.type === "level" ? "trophy" : "sparkles"} class="w-6 h-6"></i>
+              <span>{toast.message}</span>
+            </div>
+          )}
+
+          {/* HEADER BAR */}
+          <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+              
+              {/* LOGO */}
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-200">
+                  <i data-lucide="graduation-cap" class="w-7 h-7"></i>
+                </div>
+                <div>
+                  <h1 class="text-xl font-extrabold bg-gradient-to-r from-teal-700 to-emerald-600 bg-clip-text text-transparent">
+                    Classroom App
+                  </h1>
+                  <p class="text-xs text-slate-500 font-medium">Học Tập Gamification & Quản Lý Lớp</p>
+                </div>
+              </div>
+
+              {/* GAMIFICATION STATS (STUDENT MODE) */}
+              {currentRole === "student" && (
+                <div class="hidden md:flex items-center gap-4 bg-slate-100/80 px-4 py-2 rounded-2xl border border-slate-200/60">
+                  <div class="flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-amber-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                      L{data.currentUser.level}
+                    </span>
+                    <div>
+                      <div class="flex justify-between text-xs font-bold text-slate-700">
+                        <span>Cấp Độ {data.currentUser.level}</span>
+                        <span class="text-amber-600 font-extrabold">{data.currentUser.xp} XP</span>
+                      </div>
+                      <div class="w-28 bg-slate-200 h-2 rounded-full overflow-hidden mt-0.5">
+                        <div 
+                          class="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, ((data.currentUser.xp % 150) / 150) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="h-6 w-px bg-slate-300"></div>
+
+                  <div class="flex items-center gap-1.5 font-extrabold text-xs text-orange-600">
+                    <i data-lucide="flame" class="w-5 h-5 text-orange-500 fill-orange-500 animate-pulse"></i>
+                    <span>{data.currentUser.streak_days} Ngày Streak</span>
+                  </div>
+                </div>
+              )}
+
+              {/* ROLE SWITCHER DROPDOWN */}
+              <div class="flex items-center gap-3">
+                <div class="text-right hidden sm:block">
+                  <p class="text-xs text-slate-400 font-medium">Đang chế độ xem:</p>
+                  <p class="text-xs font-bold text-teal-700">
+                    {currentRole === "student" && "🎓 Học Sinh (Nguyễn Văn An)"}
+                    {currentRole === "teacher" && "👨‍🏫 Giáo Viên (Thầy Cường)"}
+                    {currentRole === "parent" && "👨‍👩‍👧 Cổng Tra Cứu Phụ Huynh"}
+                  </p>
+                </div>
+
+                <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button 
+                    onClick={() => { setCurrentRole("student"); setActiveTab("dashboard"); }}
+                    class={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      currentRole === "student" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Học Sinh
+                  </button>
+                  <button 
+                    onClick={() => { setCurrentRole("teacher"); setActiveTab("dashboard"); }}
+                    class={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      currentRole === "teacher" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Giáo Viên
+                  </button>
+                  <button 
+                    onClick={() => { setCurrentRole("parent"); setActiveTab("dashboard"); }}
+                    class={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      currentRole === "parent" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Phụ Huynh
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </header>
+
+          {/* MAIN CONTENT AREA */}
+          <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            {/* STUDENT DASHBOARD VIEW */}
+            {currentRole === "student" && (
+              <StudentDashboard 
+                data={data} 
+                setData={setData}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                onOpenQuiz={(quiz) => setActiveQuizModal(quiz)}
+                onOpenSandbox={(lesson) => setActiveSandboxModal(lesson)}
+                addXP={addXP}
+              />
+            )}
+
+            {/* TEACHER DASHBOARD VIEW */}
+            {currentRole === "teacher" && (
+              <TeacherDashboard 
+                data={data} 
+                setData={setData} 
+                showToast={showToast}
+              />
+            )}
+
+            {/* PARENT PORTAL LOOKUP VIEW */}
+            {currentRole === "parent" && (
+              <ParentPortal 
+                data={data}
+              />
+            )}
+
+          </main>
+
+          {/* QUIZ PLAYER MODAL */}
+          {activeQuizModal && (
+            <QuizPlayerModal 
+              quiz={activeQuizModal} 
+              onClose={() => setActiveQuizModal(null)}
+              onFinish={(score, correctCount, totalCount) => {
+                const xpEarned = Math.round((score / 10) * activeQuizModal.xp_reward);
+                addXP(xpEarned);
+                
+                // Add submission to record
+                const newSub = {
+                  id: "sub-" + Date.now(),
+                  student_code: data.currentUser.student_code,
+                  student_name: data.currentUser.full_name,
+                  quiz_title: activeQuizModal.title,
+                  score: score,
+                  correct_answers: correctCount,
+                  total_questions: totalCount,
+                  xp_earned: xpEarned,
+                  submitted_at: new Date().toLocaleString("vi-VN")
+                };
+
+                setData(prev => ({
+                  ...prev,
+                  quizSubmissions: [newSub, ...prev.quizSubmissions]
+                }));
+              }}
+            />
+          )}
+
+          {/* IFRAME SANDBOX AN TOÀN MODAL */}
+          {activeSandboxModal && (
+            <SandboxModal 
+              lesson={activeSandboxModal} 
+              onClose={() => setActiveSandboxModal(null)} 
+            />
+          )}
+
+          {/* FOOTER ARCHITECTURE BAR */}
+          <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500">
+              <p class="font-bold text-slate-700">Dự án Classroom App • Thiết kế theo chuẩn Sơ đồ 4 Tầng Kiến trúc</p>
+              <p class="mt-1">Frontend React SPA • Supabase Auth & RLS Guard • iFrame Sandbox • Quiz & Gamification Engine • PostgreSQL DB</p>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    // --- STUDENT DASHBOARD COMPONENT ---
+    function StudentDashboard({ data, setData, activeTab, setActiveTab, onOpenQuiz, onOpenSandbox, addXP }) {
+      const [joinCodeInput, setJoinCodeInput] = useState("");
+      const [showJoinModal, setShowJoinModal] = useState(false);
+
+      return (
+        <div class="space-y-8">
+          {/* HERO BANNER GAMIFIED */}
+          <div class="bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div>
+                <span class="bg-white/20 text-white text-xs font-extrabold px-3.5 py-1.5 rounded-full uppercase tracking-wider">
+                  Xin chào, {data.currentUser.full_name}! 👋
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-black mt-3">
+                  Sẵn sàng chinh phục đỉnh cao tri thức hôm nay? 🚀
+                </h2>
+                <p class="text-teal-100 text-sm mt-2 max-w-xl">
+                  Hoàn thành các bài Quiz trắc nghiệm và trải nghiệm game mô phỏng sinh động để tích lũy XP thăng cấp Level!
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setShowJoinModal(true)}
+                class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-500/30 transition-all flex items-center gap-2 text-sm shrink-0"
+              >
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                <span>Nhập Mã Tham Gia Lớp</span>
+              </button>
+            </div>
+          </div>
+
+          {/* TAB NAVIGATION */}
+          <div class="flex border-b border-slate-200 overflow-x-auto gap-2">
+            {[
+              { id: "dashboard", label: "Lớp Học & Học Liệu", icon: "book-open" },
+              { id: "quiz", label: "Thử Thách Quiz", icon: "zap" },
+              { id: "leaderboard", label: "Bảng Xếp Hạng", icon: "trophy" },
+              { id: "badges", label: "Bộ Sưu Tập Huy Hiệu", icon: "award" },
+              { id: "feed", label: "Bảng Tin Lớp Học", icon: "message-square" }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                class={`flex items-center gap-2 px-5 py-3 font-bold text-sm border-b-2 transition-all shrink-0 ${
+                  activeTab === tab.id 
+                    ? "border-teal-600 text-teal-700 bg-teal-50/50 rounded-t-xl" 
+                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                }`}
+              >
+                <i data-lucide={tab.icon} class="w-4 h-4"></i>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* TAB 1: LỚP HỌC & HỌC LIỆU */}
+          {activeTab === "dashboard" && (
+            <div class="space-y-8">
+              {/* LỚP HỌC CỦA EM */}
+              <div>
+                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+                  <i data-lucide="bookmark" class="w-5 h-5 text-teal-600"></i>
+                  <span>Lớp Học Đã Tham Gia</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {data.classes.map(cls => (
+                    <div key={cls.id} class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-md transition-all">
+                      <div class="flex items-center justify-between mb-4">
+                        <span class="bg-teal-100 text-teal-800 font-extrabold text-xs px-3 py-1 rounded-full">
+                          {cls.grade_level}
+                        </span>
+                        <span class="text-xs text-slate-400 font-semibold flex items-center gap-1">
+                          <i data-lucide="key" class="w-3.5 h-3.5"></i>
+                          Mã: <strong class="text-slate-700">{cls.join_code}</strong>
+                        </span>
+                      </div>
+                      <h4 class="text-xl font-bold text-slate-900">{cls.name}</h4>
+                      <p class="text-xs text-slate-500 mt-1 font-medium">Giảng viên: {cls.teacher_name}</p>
+                      <p class="text-xs text-slate-600 mt-3 line-clamp-2">{cls.description}</p>
+                      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-xs text-slate-500 flex items-center gap-1">
+                          <i data-lucide="users" class="w-4 h-4"></i> {cls.students_count} Học sinh
+                        </span>
+                        <button 
+                          onClick={() => setActiveTab("lessons")}
+                          class="text-xs font-extrabold text-teal-700 hover:text-teal-900 flex items-center gap-1"
+                        >
+                          Xem bài học <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* HỌC LIỆU TƯƠNG TÁC & GAME IFRAME */}
+              <div>
+                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+                  <i data-lucide="folder-open" class="w-5 h-5 text-teal-600"></i>
+                  <span>Học Liệu & Thí Nghiệm Mô Phỏng Tương Tác</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {data.lessons.map(les => (
+                    <div key={les.id} class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between hover:border-teal-300 transition-all">
+                      <div>
+                        <div class="flex items-center justify-between mb-3">
+                          {les.material_type === "iframe_game" && (
+                            <span class="bg-amber-100 text-amber-800 font-extrabold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                              <i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> Game Mô Phỏng
+                            </span>
+                          )}
+                          {les.material_type === "pdf" && (
+                            <span class="bg-rose-100 text-rose-800 font-extrabold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                              <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Tài Liệu PDF
+                            </span>
+                          )}
+                          {les.material_type === "video" && (
+                            <span class="bg-sky-100 text-sky-800 font-extrabold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                              <i data-lucide="video" class="w-3.5 h-3.5"></i> Video Bài Giảng
+                            </span>
+                          )}
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-base">{les.title}</h4>
+                        <p class="text-xs text-slate-500 mt-2">{les.description}</p>
+                      </div>
+
+                      <div class="mt-6 pt-4 border-t border-slate-100">
+                        {les.material_type === "iframe_game" ? (
+                          <button 
+                            onClick={() => onOpenSandbox(les)}
+                            class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-xs py-3 rounded-2xl shadow-md hover:brightness-105 transition-all flex items-center justify-center gap-2"
+                          >
+                            <i data-lucide="play-circle" class="w-4 h-4"></i>
+                            <span>Mở Game Sandbox An Toàn</span>
+                          </button>
+                        ) : (
+                          <a 
+                            href={les.file_url || les.embed_url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs py-3 rounded-2xl transition-all flex items-center justify-center gap-2"
+                          >
+                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                            <span>Xem Tài Liệu</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: THỬ THÁCH QUIZ */}
+          {activeTab === "quiz" && (
+            <div class="space-y-6">
+              <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                <i data-lucide="zap" class="w-5 h-5 text-amber-500"></i>
+                <span>Danh Sách Thử Thách Quiz Trắc Nghiệm</span>
+              </h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {data.quizzes.map(q => (
+                  <div key={q.id} class="bg-white rounded-3xl p-6 border-2 border-amber-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div class="flex items-center justify-between mb-3">
+                        <span class="bg-amber-100 text-amber-900 font-extrabold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                          <i data-lucide="clock" class="w-3.5 h-3.5"></i> {q.duration_minutes} Phút
+                        </span>
+                        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> +{q.xp_reward} XP Thưởng
+                        </span>
+                      </div>
+                      <h4 class="font-extrabold text-slate-900 text-lg">{q.title}</h4>
+                      <p class="text-xs text-slate-500 mt-2">Tổng số câu hỏi: {q.questions.length} câu trắc nghiệm tự động chấm điểm.</p>
+                    </div>
+
+                    <button 
+                      onClick={() => onOpenQuiz(q)}
+                      class="mt-6 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
+                    >
+                      <i data-lucide="play" class="w-5 h-5 fill-slate-950"></i>
+                      <span>Bắt Đầu Làm Quiz Ngay</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* LỊCH SỬ NỘP BÀI */}
+              <div class="mt-8 bg-white rounded-3xl p-6 border border-slate-200">
+                <h4 class="font-bold text-slate-800 text-sm mb-4">Lịch Sử Nộp Bài Trắc Nghiệm Của Em</h4>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-xs text-left text-slate-600">
+                    <thead class="bg-slate-50 text-slate-700 uppercase font-bold">
+                      <tr>
+                        <th class="p-3">Tên Bài Quiz</th>
+                        <th class="p-3">Điểm Số</th>
+                        <th class="p-3">Số Câu Đúng</th>
+                        <th class="p-3">XP Nhận Được</th>
+                        <th class="p-3">Thời Gian Nộp</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      {data.quizSubmissions.map(sub => (
+                        <tr key={sub.id} class="hover:bg-slate-50 font-medium">
+                          <td class="p-3 font-bold text-slate-800">{sub.quiz_title}</td>
+                          <td class="p-3 font-black text-emerald-600">{sub.score} / 10</td>
+                          <td class="p-3">{sub.correct_answers} / {sub.total_questions}</td>
+                          <td class="p-3 font-bold text-amber-600">+{sub.xp_earned} XP</td>
+                          <td class="p-3 text-slate-400">{sub.submitted_at}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: BẢNG XẾP HẠNG LEADERBOARD */}
+          {activeTab === "leaderboard" && (
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm max-w-3xl mx-auto">
+              <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-amber-100 rounded-3xl text-amber-600 flex items-center justify-center mx-auto mb-3">
+                  <i data-lucide="trophy" class="w-9 h-9"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-900">Bảng Xếp Hạng Siêu Học Sinh</h3>
+                <p class="text-xs text-slate-500 mt-1">Vinh danh Top học sinh có điểm XP kinh nghiệm cao nhất</p>
+              </div>
+
+              <div class="space-y-3">
+                {[...data.students].sort((a,b) => b.xp - a.xp).map((st, idx) => (
+                  <div 
+                    key={st.id} 
+                    class={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      idx === 0 ? "bg-amber-50/80 border-amber-300 shadow-sm" : 
+                      idx === 1 ? "bg-slate-50 border-slate-300" : 
+                      idx === 2 ? "bg-orange-50/50 border-orange-200" : "bg-white border-slate-100"
+                    }`}
+                  >
+                    <div class="flex items-center gap-4">
+                      <span class={`w-8 h-8 rounded-xl font-black text-sm flex items-center justify-center ${
+                        idx === 0 ? "bg-amber-500 text-white" : 
+                        idx === 1 ? "bg-slate-400 text-white" : 
+                        idx === 2 ? "bg-amber-700 text-white" : "bg-slate-200 text-slate-700"
+                      }`}>
+                        #{idx + 1}
+                      </span>
+                      <div>
+                        <h4 class="font-bold text-slate-900 text-sm">{st.full_name}</h4>
+                        <p class="text-xs text-slate-400">Mã: {st.student_code} • Cấp độ L{st.level}</p>
+                      </div>
+                    </div>
+
+                    <div class="text-right">
+                      <span class="font-black text-amber-600 text-base">{st.xp} XP</span>
+                      <span class="block text-[10px] text-orange-600 font-extrabold">🔥 {st.streak} Ngày</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: HUY HIỆU */}
+          {activeTab === "badges" && (
+            <div class="space-y-6">
+              <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                <i data-lucide="award" class="w-5 h-5 text-amber-500"></i>
+                <span>Bộ Sưu Tập Huy Hiệu Đạt Được</span>
+              </h3>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                {data.badges.map(b => (
+                  <div key={b.id} class="bg-white rounded-3xl p-6 border border-slate-200 text-center flex flex-col items-center hover:shadow-md transition-all">
+                    <div class="text-5xl mb-3">{b.icon}</div>
+                    <h4 class="font-extrabold text-slate-900 text-sm">{b.name}</h4>
+                    <p class="text-xs text-slate-500 mt-2">{b.desc}</p>
+                    <span class="mt-4 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                      ✓ Đã Mở Khóa
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: BẢNG TIN LỚP HỌC */}
+          {activeTab === "feed" && (
+            <ClassFeed data={data} setData={setData} role="student" />
+          )}
+
+          {/* MODAL JOIN CLASS CODE */}
+          {showJoinModal && (
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl">
+                <h3 class="text-xl font-black text-slate-900 text-center">Tham Gia Lớp Học Mới</h3>
+                <p class="text-xs text-slate-500 text-center mt-1">Nhập mã tham gia 6 ký tự được cấp bởi giáo viên (VD: TOAN9A)</p>
+                <input 
+                  type="text" 
+                  value={joinCodeInput}
+                  onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                  placeholder="VD: TOAN9A" 
+                  class="w-full text-center text-2xl font-black uppercase tracking-widest px-4 py-4 rounded-2xl border-2 border-slate-300 focus:border-teal-600 outline-none mt-6"
+                />
+                <div class="flex gap-3 mt-6">
+                  <button 
+                    onClick={() => setShowJoinModal(false)}
+                    class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50"
+                  >
+                    Hủy
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (joinCodeInput) {
+                        alert(`Chúc mừng! Bạn đã tham gia thành công vào lớp học với mã ${joinCodeInput}!`);
+                        setShowJoinModal(false);
+                        setJoinCodeInput("");
+                      }
+                    }}
+                    class="flex-1 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs shadow-md"
+                  >
+                    Xác Nhận Tham Gia
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- TEACHER DASHBOARD COMPONENT ---
+    function TeacherDashboard({ data, setData, showToast }) {
+      const [teacherTab, setTeacherTab] = useState("attendance"); // attendance | lessons | create_quiz
+      const [attendanceState, setAttendanceState] = useState(data.students);
+      const [newClassModal, setNewClassModal] = useState(false);
+      const [className, setClassName] = useState("");
+
+      const toggleAttendance = (id, status) => {
+        setAttendanceState(prev => prev.map(st => st.id === id ? { ...st, status } : st));
+      };
+
+      const handleSaveAttendance = () => {
+        showToast("✅ Đã lưu danh sách điểm danh lớp 9A thành công!", "success");
+      };
+
+      return (
+        <div class="space-y-8">
+          <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <span class="bg-teal-500/20 text-teal-300 text-xs font-bold px-3 py-1 rounded-full">Chế độ Quản lý Giáo Viên</span>
+              <h2 class="text-2xl font-black mt-2">Bảng Điều Khiển Lớp Học & Chấm Điểm</h2>
+              <p class="text-xs text-slate-400 mt-1">Quản lý danh sách học sinh, điểm danh 1-click, tạo đề thi trắc nghiệm và đăng bài giảng.</p>
+            </div>
+            <button 
+              onClick={() => setNewClassModal(true)}
+              class="bg-teal-600 hover:bg-teal-500 text-white font-extrabold px-5 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-lg"
+            >
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> Tạo Lớp Học Mới
+            </button>
+          </div>
+
+          {/* TEACHER TABS */}
+          <div class="flex border-b border-slate-200 overflow-x-auto gap-2">
+            {[
+              { id: "attendance", label: "Điểm Danh Lớp 9A", icon: "check-square" },
+              { id: "lessons", label: "Đăng Học Liệu & Bài Giảng", icon: "upload" },
+              { id: "feed", label: "Bảng Tin & Thông Báo", icon: "message-square" }
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTeacherTab(t.id)}
+                class={`flex items-center gap-2 px-5 py-3 font-bold text-sm border-b-2 transition-all shrink-0 ${
+                  teacherTab === t.id ? "border-teal-600 text-teal-700 bg-teal-50/50 rounded-t-xl" : "border-transparent text-slate-500"
+                }`}
+              >
+                <i data-lucide={t.icon} class="w-4 h-4"></i>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* TAB 1: ĐIỂM DANH */}
+          {teacherTab === "attendance" && (
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="font-extrabold text-slate-900 text-lg">Danh Sách Điểm Danh Ngày {new Date().toLocaleDateString("vi-VN")}</h3>
+                  <p class="text-xs text-slate-500">Lớp 9A - Toán & Khoa Học Tự Nhiên</p>
+                </div>
+                <button 
+                  onClick={handleSaveAttendance}
+                  class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md"
+                >
+                  Lưu Điểm Danh
+                </button>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-700">
+                  <thead class="bg-slate-50 uppercase font-bold text-slate-500">
+                    <tr>
+                      <th class="p-3">Mã Học Sinh</th>
+                      <th class="p-3">Họ Và Tên</th>
+                      <th class="p-3">Trạng Thái Điểm Danh</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    {attendanceState.map(st => (
+                      <tr key={st.id} class="hover:bg-slate-50">
+                        <td class="p-3 font-mono font-bold text-slate-900">{st.student_code}</td>
+                        <td class="p-3 font-bold text-slate-800">{st.full_name}</td>
+                        <td class="p-3">
+                          <div class="flex gap-2">
+                            {[
+                              { id: "present", label: "Có Mặt", color: "emerald" },
+                              { id: "absent_excused", label: "Vắng Phép", color: "amber" },
+                              { id: "absent_unexcused", label: "Vắng Không Phép", color: "rose" },
+                              { id: "late", label: "Đi Muộn", color: "sky" }
+                            ].map(btn => (
+                              <button
+                                key={btn.id}
+                                onClick={() => toggleAttendance(st.id, btn.id)}
+                                class={`px-3 py-1.5 rounded-lg font-extrabold text-[11px] transition-all ${
+                                  st.status === btn.id 
+                                    ? `bg-${btn.color}-600 text-white shadow-sm` 
+                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                }`}
+                              >
+                                {btn.label}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: ĐĂNG HỌC LIỆU */}
+          {teacherTab === "lessons" && (
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 space-y-6">
+              <h3 class="font-extrabold text-slate-900 text-lg">Thêm Bài Giảng / Game Sandbox Mới</h3>
+              <div class="grid grid-cols-1 gap-4 max-w-xl">
+                <input type="text" placeholder="Tiêu đề bài học / Game mô phỏng" class="p-3 rounded-xl border border-slate-300 text-xs font-semibold outline-none focus:border-teal-600" />
+                <select class="p-3 rounded-xl border border-slate-300 text-xs font-semibold">
+                  <option value="pdf">Tài liệu File PDF</option>
+                  <option value="iframe_game">Game Sandbox iFrame Mô Phỏng</option>
+                  <option value="video">Video Bài Giảng Youtube</option>
+                </select>
+                <input type="text" placeholder="Đường dẫn URL / Embed URL" class="p-3 rounded-xl border border-slate-300 text-xs font-semibold outline-none focus:border-teal-600" />
+                <button onClick={() => showToast("Đã tải lên bài học mới thành công!", "success")} class="bg-teal-600 text-white font-extrabold py-3 rounded-xl text-xs shadow-md">
+                  Đăng Bài Giảng
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: BẢNG TIN */}
+          {teacherTab === "feed" && (
+            <ClassFeed data={data} setData={setData} role="teacher" />
+          )}
+
+          {/* CREATE CLASS MODAL */}
+          {newClassModal && (
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <h3 class="text-lg font-black text-slate-900">Tạo Lớp Học Mới</h3>
+                <input 
+                  type="text" 
+                  value={className}
+                  onChange={(e) => setClassName(e.target.value)}
+                  placeholder="Tên lớp (VD: Lớp 9C - Hóa Học)" 
+                  class="w-full p-3 rounded-xl border border-slate-300 text-xs font-bold"
+                />
+                <div class="flex gap-3">
+                  <button onClick={() => setNewClassModal(false)} class="flex-1 py-2.5 rounded-xl border text-xs font-bold">Hủy</button>
+                  <button 
+                    onClick={() => {
+                      if (className) {
+                        const newCls = {
+                          id: "cls-" + Date.now(),
+                          name: className,
+                          grade_level: "Khối 9",
+                          join_code: "LOPHOC" + Math.floor(10 + Math.random() * 90),
+                          teacher_name: "Thầy Cường",
+                          students_count: 0,
+                          description: "Lớp học mới được tạo.",
+                          bg_gradient: "from-teal-600 to-emerald-700"
+                        };
+                        setData(prev => ({ ...prev, classes: [...prev.classes, newCls] }));
+                        showToast(`Tạo thành công lớp với mã Join Code: ${newCls.join_code}`);
+                        setNewClassModal(false);
+                      }
+                    }} 
+                    class="flex-1 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold"
+                  >
+                    Tạo Lớp
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- PARENT PORTAL COMPONENT ---
+    function ParentPortal({ data }) {
+      const [searchCode, setSearchCode] = useState("HS2026001");
+      const [foundStudent, setFoundStudent] = useState(data.students[0]);
+
+      const handleSearch = () => {
+        const st = data.students.find(s => s.student_code.toUpperCase() === searchCode.trim().toUpperCase());
+        if (st) {
+          setFoundStudent(st);
+        } else {
+          alert("Không tìm thấy học sinh với mã cung cấp!");
+        }
+      };
+
+      return (
+        <div class="space-y-8 max-w-4xl mx-auto">
+          {/* PARENT SEARCH HEADER */}
+          <div class="bg-gradient-to-r from-slate-900 to-teal-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+            <h2 class="text-2xl font-black">👨‍👩‍👧 Cổng Tra Cứu Kết Quả Học Tập Dành Cho Phụ Huynh</h2>
+            <p class="text-xs text-slate-300 mt-1">Nhập Mã Học Sinh của con em để xem ngay Báo cáo Điểm danh, Điểm số Quiz & Lời nhắn từ Giáo viên.</p>
+            
+            <div class="flex flex-col sm:flex-row gap-3 mt-6">
+              <input 
+                type="text" 
+                value={searchCode}
+                onChange={(e) => setSearchCode(e.target.value)}
+                placeholder="Nhập Mã HS (VD: HS2026001)" 
+                class="flex-1 bg-white text-slate-900 font-mono font-black text-sm uppercase px-4 py-3 rounded-2xl border-none outline-none"
+              />
+              <button 
+                onClick={handleSearch}
+                class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs shadow-md transition-all shrink-0"
+              >
+                Tra Cứu Ngay
+              </button>
+            </div>
+          </div>
+
+          {/* REPORT RESULT CARD */}
+          {foundStudent && (
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-8">
+              {/* STUDENT BRIEF */}
+              <div class="flex items-center justify-between border-b border-slate-100 pb-6">
+                <div>
+                  <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Học Sinh Tra Cứu</span>
+                  <h3 class="text-2xl font-black text-slate-900">{foundStudent.full_name}</h3>
+                  <p class="text-xs text-slate-500 mt-1">Mã Học Sinh: <strong class="text-slate-800">{foundStudent.student_code}</strong> • Ngày sinh: {foundStudent.dob}</p>
+                </div>
+                <div class="text-right">
+                  <span class="bg-amber-100 text-amber-900 font-extrabold text-xs px-3.5 py-1.5 rounded-full">
+                    Cấp Độ L{foundStudent.level}
+                  </span>
+                  <span class="block text-sm font-black text-amber-600 mt-1">{foundStudent.xp} XP tích lũy</span>
+                </div>
+              </div>
+
+              {/* REPORT GRID */}
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-emerald-50 rounded-2xl p-5 border border-emerald-200">
+                  <p class="text-xs text-emerald-700 font-extrabold uppercase">Tình Trạng Điểm Danh</p>
+                  <p class="text-xl font-black text-emerald-900 mt-2">
+                    {foundStudent.status === "present" ? "✅ Có Mặt Hôm Nay" : "⚠️ Vắng / Phép"}
+                  </p>
+                  <p class="text-[11px] text-emerald-700 mt-1">Chuỗi đi học chuyên cần: {foundStudent.streak} ngày liên tiếp</p>
+                </div>
+
+                <div class="bg-sky-50 rounded-2xl p-5 border border-sky-200">
+                  <p class="text-xs text-sky-700 font-extrabold uppercase">Bài Quiz Gần Nhất</p>
+                  <p class="text-xl font-black text-sky-900 mt-2">10.0 / 10 Điểm</p>
+                  <p class="text-[11px] text-sky-700 mt-1">Ôn Tập Phương Trình Bậc Hai Toán 9</p>
+                </div>
+
+                <div class="bg-amber-50 rounded-2xl p-5 border border-amber-200">
+                  <p class="text-xs text-amber-700 font-extrabold uppercase">Huy Hiệu Tích Lũy</p>
+                  <p class="text-xl font-black text-amber-900 mt-2">3 Huy Hiệu</p>
+                  <p class="text-[11px] text-amber-700 mt-1">🥇 Chăm Học • ⚡ Vua Quiz • 🚀 Thần Đồng</p>
+                </div>
+              </div>
+
+              {/* TEACHER NOTE */}
+              <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                <h4 class="font-extrabold text-slate-800 text-xs uppercase mb-2">Nhận Xét Của Giáo Viên Chủ Nhiệm</h4>
+                <p class="text-xs text-slate-600 leading-relaxed italic">
+                  "Em Nguyễn Văn An học tập rất chăm chỉ, phát biểu sôi nổi trong giờ Toán và hoàn thành xuất sắc các bài tập mô phỏng tương tác trên ứng dụng."
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- QUIZ PLAYER MODAL COMPONENT ---
+    function QuizPlayerModal({ quiz, onClose, onFinish }) {
+      const [currentQIndex, setCurrentQIndex] = useState(0);
+      const [selectedOption, setSelectedOption] = useState(null);
+      const [answers, setAnswers] = useState([]);
+      const [showResult, setShowResult] = useState(false);
+      const [timeLeft, setTimeLeft] = useState(quiz.duration_minutes * 60);
+
+      // Countdown Timer
+      useEffect(() => {
+        if (showResult) return;
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              handleSubmitQuiz();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [showResult]);
+
+      const currentQ = quiz.questions[currentQIndex];
+
+      const handleNextQuestion = () => {
+        const newAns = [...answers, selectedOption];
+        setAnswers(newAns);
+        setSelectedOption(null);
+
+        if (currentQIndex < quiz.questions.length - 1) {
+          setCurrentQIndex(prev => prev + 1);
+        } else {
+          // Finish quiz
+          calculateScore(newAns);
+        }
+      };
+
+      const calculateScore = (finalAns) => {
+        let correct = 0;
+        quiz.questions.forEach((q, idx) => {
+          if (finalAns[idx] === q.correct_option) {
+            correct++;
+          }
+        });
+
+        const scoreVal = Math.round((correct / quiz.questions.length) * 100) / 10;
+        setShowResult(true);
+        onFinish(scoreVal, correct, quiz.questions.length);
+      };
+
+      return (
+        <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            
+            {!showResult ? (
+              <>
+                {/* QUIZ TIMER HEADER */}
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <span class="text-xs text-amber-600 font-extrabold uppercase">Thử Thách Quiz</span>
+                    <h3 class="text-lg font-black text-slate-900">{quiz.title}</h3>
+                  </div>
+                  <div class="bg-amber-100 text-amber-900 font-black text-xs px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    <span>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}</span>
+                  </div>
+                </div>
+
+                {/* QUESTION PROGRESS */}
+                <div class="flex items-center justify-between text-xs font-extrabold text-slate-500">
+                  <span>Câu hỏi {currentQIndex + 1} / {quiz.questions.length}</span>
+                  <span>+{quiz.xp_reward} XP Thưởng</span>
+                </div>
+
+                {/* QUESTION TEXT */}
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                  <h4 class="font-bold text-slate-900 text-base sm:text-lg leading-relaxed">{currentQ.question_text}</h4>
+                </div>
+
+                {/* OPTIONS */}
+                <div class="space-y-3">
+                  {currentQ.options.map((opt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedOption(idx)}
+                      class={`w-full p-4 rounded-2xl border-2 text-left font-semibold text-sm transition-all flex items-center justify-between ${
+                        selectedOption === idx 
+                          ? "border-amber-500 bg-amber-50 text-amber-950 shadow-sm" 
+                          : "border-slate-200 hover:border-slate-300 text-slate-800"
+                      }`}
+                    >
+                      <span>{opt}</span>
+                      <span class={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                        selectedOption === idx ? "border-amber-500 bg-amber-500 text-white" : "border-slate-300"
+                      }`}>
+                        {String.fromCharCode(65 + idx)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* BUTTON NEXT */}
+                <div class="pt-4 flex justify-between">
+                  <button onClick={onClose} class="px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800">
+                    Hủy Làm Bài
+                  </button>
+                  <button 
+                    disabled={selectedOption === null}
+                    onClick={handleNextQuestion}
+                    class="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black px-6 py-3 rounded-xl text-xs shadow-md transition-all"
+                  >
+                    {currentQIndex === quiz.questions.length - 1 ? "Nộp Bài" : "Câu Tiếp Theo ➔"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* RESULT SUMMARY SCREEN */
+              <div class="text-center py-6 space-y-6">
+                <div class="w-20 h-20 bg-emerald-100 rounded-full text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
+                  <i data-lucide="trophy" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-900">Hoàn Thành Thử Thách Quiz!</h3>
+                <p class="text-xs text-slate-500">Bạn đã xuất sắc nhận được điểm thưởng XP kinh nghiệm!</p>
+
+                <div class="bg-amber-50 border border-amber-200 p-6 rounded-3xl max-w-sm mx-auto">
+                  <span class="text-xs text-amber-800 font-extrabold uppercase">Kết Quả Điểm Số</span>
+                  <p class="text-4xl font-black text-amber-600 mt-1">10.0 / 10</p>
+                  <p class="text-xs text-emerald-700 font-bold mt-2">🎉 +100 XP Thưởng Đã Được Cộng Vào Hồ Sơ!</p>
+                </div>
+
+                <button 
+                  onClick={onClose}
+                  class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-8 py-3 rounded-2xl text-xs shadow-lg"
+                >
+                  Trở Về Bảng Điều Khiển
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    }
+
+    // --- IFRAME SANDBOX MODAL COMPONENT ---
+    function SandboxModal({ lesson, onClose }) {
+      return (
+        <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-6">
+          <div class="bg-slate-900 rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-slate-700">
+            <div class="bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-700">
+              <div class="flex items-center gap-3">
+                <span class="bg-amber-500/20 text-amber-400 font-extrabold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> iFrame Sandbox An Toàn
+                </span>
+                <h3 class="text-white font-extrabold text-sm truncate">{lesson.title}</h3>
+              </div>
+              <button onClick={onClose} class="text-slate-400 hover:text-white font-bold p-1">
+                <i data-lucide="x" class="w-6 h-6"></i>
+              </button>
+            </div>
+            
+            <div class="flex-1 bg-black">
+              <iframe 
+                src={lesson.embed_url} 
+                title={lesson.title}
+                sandbox="allow-scripts allow-same-origin"
+                class="w-full h-full border-none"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- CLASS FEED COMPONENT ---
+    function ClassFeed({ data, setData, role }) {
+      const [newPostText, setNewPostText] = useState("");
+
+      const handleAddPost = () => {
+        if (!newPostText.trim()) return;
+        const newP = {
+          id: "p-" + Date.now(),
+          author: role === "teacher" ? "Thầy Nguyễn Quốc Cường" : "Nguyễn Văn An",
+          role: role === "teacher" ? "Giáo viên" : "Học sinh",
+          content: newPostText,
+          likes: 0,
+          comments: [],
+          created_at: "Vừa xong"
+        };
+        setData(prev => ({ ...prev, posts: [newP, ...prev.posts] }));
+        setNewPostText("");
+      };
+
+      return (
+        <div class="space-y-6 max-w-2xl mx-auto">
+          {/* POST CREATE BOX */}
+          <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-3">
+            <textarea
+              value={newPostText}
+              onChange={(e) => setNewPostText(e.target.value)}
+              placeholder="Chia sẻ thảo luận hoặc đặt câu hỏi bài học..."
+              class="w-full p-3 rounded-2xl border border-slate-200 text-xs font-medium outline-none focus:border-teal-600 resize-none h-20"
+            ></textarea>
+            <div class="flex justify-end">
+              <button 
+                onClick={handleAddPost}
+                class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md"
+              >
+                Đăng Bài
+              </button>
+            </div>
+          </div>
+
+          {/* POSTS LIST */}
+          <div class="space-y-4">
+            {data.posts.map(p => (
+              <div key={p.id} class="bg-white rounded-3xl p-6 border border-slate-200 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-teal-100 text-teal-800 font-black flex items-center justify-center text-xs">
+                      {p.author.slice(0, 2)}
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-900 text-sm">{p.author}</h4>
+                      <span class="text-[10px] text-slate-400 font-semibold">{p.role} • {p.created_at}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-xs text-slate-700 leading-relaxed font-medium">{p.content}</p>
+
+                <div class="pt-3 border-t border-slate-100 flex items-center gap-4 text-xs font-bold text-slate-500">
+                  <button class="flex items-center gap-1 hover:text-rose-600">
+                    <i data-lucide="heart" class="w-4 h-4 text-rose-500 fill-rose-500"></i> {p.likes} Yêu thích
+                  </button>
+                  <span class="flex items-center gap-1">
+                    <i data-lucide="message-square" class="w-4 h-4"></i> {p.comments.length} Bình luận
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // MOUNT REACT APP
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
